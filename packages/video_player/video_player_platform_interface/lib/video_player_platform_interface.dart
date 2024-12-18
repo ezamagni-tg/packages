@@ -286,7 +286,7 @@ class VideoEvent {
 
   /// The currently selected audio track id.
   ///
-  /// Used when [eventType] is [VideoEventType.initialized] of [VideoEventType.isPlayingStateUpdate].
+  /// Only used if [eventType] is [VideoEventType.initialized].
   final int? currentAudioTrackId;
 
   @override

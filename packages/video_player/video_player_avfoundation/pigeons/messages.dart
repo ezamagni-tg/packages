@@ -52,4 +52,6 @@ abstract class AVFoundationVideoPlayerApi {
   void pause(int textureId);
   @ObjCSelector('setMixWithOthers:')
   void setMixWithOthers(bool mixWithOthers);
+  @ObjCSelector('setAudioTrack:forPlayer:')
+  void setAudioTrack(int trackId, int textureId);
 }

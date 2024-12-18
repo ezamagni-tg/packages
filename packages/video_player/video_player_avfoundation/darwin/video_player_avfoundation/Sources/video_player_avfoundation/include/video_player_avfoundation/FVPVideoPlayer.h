@@ -81,6 +81,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// Tells the player to run its frame updater until it receives a frame, regardless of the
 /// play/pause state.
 - (void)expectFrame;
+
+/// Selects the track with the provided id.
+- (void)setAudioTrack:(int64_t)trackId;
 @end
 
 NS_ASSUME_NONNULL_END

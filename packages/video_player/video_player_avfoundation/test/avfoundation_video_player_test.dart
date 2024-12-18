@@ -90,6 +90,11 @@ class _ApiLogger implements TestHostVideoPlayerApi {
     playbackSpeed = speed;
     this.textureId = textureId;
   }
+  
+  @override
+  void setAudioTrack(int trackId, int textureId) {
+    log.add('setAudioTrack');
+  }
 }
 
 void main() {

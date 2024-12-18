@@ -35,6 +35,7 @@
 @property(readonly, weak, nonatomic) NSObject<FlutterTextureRegistry> *registry;
 @property(readonly, weak, nonatomic) NSObject<FlutterBinaryMessenger> *messenger;
 @property(readonly, strong, nonatomic) NSObject<FlutterPluginRegistrar> *registrar;
+@property(readonly, nonatomic) AVMediaSelectionGroup *audioSelectionGroup;
 @property(nonatomic, strong) id<FVPDisplayLinkFactory> displayLinkFactory;
 @property(nonatomic, strong) id<FVPAVFactory> avFactory;
 @end
@@ -211,6 +212,11 @@
     [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayback error:nil];
   }
 #endif
+}
+
+- (void)setAudioTrack:(NSInteger)trackId forPlayer:(NSInteger)textureId error:(FlutterError * _Nullable __autoreleasing * _Nonnull)error {
+  FVPVideoPlayer *player = self.playersByTextureId[@(textureId)];
+  [player setAudioTrack:trackId];
 }
 
 @end

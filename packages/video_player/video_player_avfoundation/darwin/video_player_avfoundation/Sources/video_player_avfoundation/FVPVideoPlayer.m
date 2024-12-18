@@ -35,6 +35,8 @@ static void *rateContext = &rateContext;
 @property(nonatomic) FVPFrameUpdater *frameUpdater;
 /// The display link that drives frameUpdater.
 @property(nonatomic) FVPDisplayLink *displayLink;
+/// The AVMediaSelectionGroup available for this video player.
+@property(readonly, nonatomic) AVMediaSelectionGroup *audioSelectionGroup;
 /// Whether a new frame needs to be provided to the engine regardless of the current play/pause
 /// state (e.g., after a seek while paused). If YES, the display link should continue to run until
 /// the next frame is successfully provided.
@@ -399,14 +401,44 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
     if (duration == 0) {
       return;
     }
-
-    _isInitialized = YES;
-    _eventSink(@{
+    
+    // fetch audio track info for this player element
+    _audioSelectionGroup = [asset mediaSelectionGroupForMediaCharacteristic:AVMediaCharacteristicAudible];
+    NSMutableArray<NSDictionary *> * audioTracks = [[NSMutableArray alloc] init];
+    NSPredicate *titlePredicate = [NSPredicate predicateWithFormat: @"commonKey = %@", AVMetadataCommonKeyTitle];
+    
+    for (int i = 0; i < _audioSelectionGroup.options.count; i++) {
+      AVMediaSelectionOption *option = _audioSelectionGroup.options[i];
+      NSMutableDictionary * track = [[NSMutableDictionary alloc] initWithDictionary: @{
+        @"id" : @(i),
+      }];
+      AVMetadataItem *titleMetadata = [option.commonMetadata filteredArrayUsingPredicate:titlePredicate].firstObject;
+      if (titleMetadata != nil) {
+        track[@"name"] = titleMetadata.stringValue;
+      }
+      if (option.extendedLanguageTag != nil) {
+        track[@"language"] = option.extendedLanguageTag;
+      }
+      [audioTracks addObject: track];
+    }
+    
+    NSMutableDictionary* eventData = [NSMutableDictionary dictionaryWithDictionary:@{
       @"event" : @"initialized",
       @"duration" : @(duration),
       @"width" : @(width),
-      @"height" : @(height)
-    });
+      @"height" : @(height),
+      @"audioTracks" : audioTracks,
+    }];
+    
+    AVMediaSelectionOption* selectedAudioTrack = [currentItem.currentMediaSelection
+                                                  selectedMediaOptionInMediaSelectionGroup:_audioSelectionGroup];
+    if (selectedAudioTrack != nil) {
+      NSUInteger selectedTrackIdx = [_audioSelectionGroup.options indexOfObject:selectedAudioTrack];
+      eventData[@"audioTrackId"] = @(selectedTrackIdx);
+    }
+
+    _isInitialized = YES;
+    _eventSink(eventData);
   }
 }
 
@@ -470,6 +502,15 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
 
 - (void)setVolume:(double)volume {
   _player.volume = (float)((volume < 0.0) ? 0.0 : ((volume > 1.0) ? 1.0 : volume));
+}
+
+- (void)setAudioTrack:(int64_t)trackId {
+  if (trackId < 0 || trackId >= _audioSelectionGroup.options.count) {
+    return;
+  }
+  
+  [_player.currentItem selectMediaOption:_audioSelectionGroup.options[trackId]
+                   inMediaSelectionGroup:_audioSelectionGroup];
 }
 
 - (void)setPlaybackSpeed:(double)speed {

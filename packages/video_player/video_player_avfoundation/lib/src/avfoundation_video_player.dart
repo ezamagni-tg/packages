@@ -100,6 +100,11 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
   }
 
   @override
+  Future<void> setAudioTrack(int textureId, AudioTrack track) {
+    return _api.setAudioTrack(track.id, textureId);
+  }
+
+  @override
   Stream<VideoEvent> videoEventsFor(int textureId) {
     return _eventChannelFor(textureId)
         .receiveBroadcastStream()
@@ -112,6 +117,17 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
             duration: Duration(milliseconds: map['duration'] as int),
             size: Size((map['width'] as num?)?.toDouble() ?? 0.0,
                 (map['height'] as num?)?.toDouble() ?? 0.0),
+            availableAudioTracks: (map['audioTracks'] as List<Object?>)
+                .cast<Map<dynamic, dynamic>>()
+                .map(
+                  (Map<dynamic, dynamic> e) => AudioTrack(
+                    id: e['id'] as int,
+                    name: e['name'] as String?,
+                    language: e['language'] as String?,
+                  ),
+                )
+                .toList(),
+            currentAudioTrackId: (map['audioTrackId'] as num?)?.toInt(),
           );
         case 'completed':
           return VideoEvent(
