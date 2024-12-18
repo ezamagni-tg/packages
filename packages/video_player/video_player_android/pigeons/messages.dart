@@ -35,4 +35,5 @@ abstract class AndroidVideoPlayerApi {
   void seekTo(int textureId, int position);
   void pause(int textureId);
   void setMixWithOthers(bool mixWithOthers);
+  void setAudioTrack(int textureId, int trackId);
 }

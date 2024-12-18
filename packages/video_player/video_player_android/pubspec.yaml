@@ -27,6 +27,10 @@ dev_dependencies:
     sdk: flutter
   pigeon: ^22.4.2
 
+dependency_overrides:
+  video_player_platform_interface:
+    path: ../video_player_platform_interface
+
 topics:
   - video
   - video-player
