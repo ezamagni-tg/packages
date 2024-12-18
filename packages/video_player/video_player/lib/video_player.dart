@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,6 +16,7 @@ import 'src/closed_caption_file.dart';
 
 export 'package:video_player_platform_interface/video_player_platform_interface.dart'
     show
+        AudioTrack,
         DataSourceType,
         DurationRange,
         VideoFormat,
@@ -59,6 +61,8 @@ class VideoPlayerValue {
     this.rotationCorrection = 0,
     this.errorDescription,
     this.isCompleted = false,
+    this.availableAudioTracks = const <AudioTrack>[],
+    this.audioTrack,
   });
 
   /// Returns an instance for a video that hasn't been loaded.
@@ -137,6 +141,12 @@ class VideoPlayerValue {
   /// [errorDescription] should have information about the problem.
   bool get hasError => errorDescription != null;
 
+  /// List of audio tracks available for the currently loaded video.
+  final List<AudioTrack> availableAudioTracks;
+
+  /// The currently selected audio track (if any).
+  final AudioTrack? audioTrack;
+
   /// Returns [size.width] / [size.height].
   ///
   /// Will return `1.0` if:
@@ -171,6 +181,8 @@ class VideoPlayerValue {
     double? playbackSpeed,
     int? rotationCorrection,
     String? errorDescription = _defaultErrorDescription,
+    List<AudioTrack>? availableAudioTracks,
+    AudioTrack? audioTrack,
     bool? isCompleted,
   }) {
     return VideoPlayerValue(
@@ -187,9 +199,10 @@ class VideoPlayerValue {
       volume: volume ?? this.volume,
       playbackSpeed: playbackSpeed ?? this.playbackSpeed,
       rotationCorrection: rotationCorrection ?? this.rotationCorrection,
-      errorDescription: errorDescription != _defaultErrorDescription
-          ? errorDescription
-          : this.errorDescription,
+      availableAudioTracks: availableAudioTracks ?? this.availableAudioTracks,
+      audioTrack: audioTrack ?? this.audioTrack,
+      errorDescription:
+          errorDescription != _defaultErrorDescription ? errorDescription : this.errorDescription,
       isCompleted: isCompleted ?? this.isCompleted,
     );
   }
@@ -232,6 +245,8 @@ class VideoPlayerValue {
           size == other.size &&
           rotationCorrection == other.rotationCorrection &&
           isInitialized == other.isInitialized &&
+          audioTrack == other.audioTrack &&
+          listEquals(availableAudioTracks, other.availableAudioTracks) &&
           isCompleted == other.isCompleted;
 
   @override
@@ -251,6 +266,8 @@ class VideoPlayerValue {
         rotationCorrection,
         isInitialized,
         isCompleted,
+        audioTrack,
+        availableAudioTracks,
       );
 }
 
@@ -462,6 +479,11 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
             size: event.size,
             rotationCorrection: event.rotationCorrection,
             isInitialized: event.duration != null,
+            availableAudioTracks: event.availableAudioTracks,
+            audioTrack: event.currentAudioTrackId == null
+                ? null
+                : event.availableAudioTracks
+                    ?.firstWhereOrNull((AudioTrack t) => t.id == event.currentAudioTrackId!),
             errorDescription: null,
             isCompleted: false,
           );
@@ -521,6 +543,23 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
         .videoEventsFor(_textureId)
         .listen(eventListener, onError: errorListener);
     return initializingCompleter.future;
+  }
+
+  /// Selects an [AudioTrack] to play.
+  ///
+  /// The [audioTrack] parameter should be an instance of among those
+  /// contained in [VideoPlayerValue.availableAudioTracks].
+  Future<void> setAudioTrack(AudioTrack audioTrack) async {
+    if (_isDisposedOrNotInitialized ||
+        !value.availableAudioTracks.map((AudioTrack t) => t.id).contains(audioTrack.id)) {
+      return;
+    }
+
+    await _videoPlayerPlatform.setAudioTrack(
+      _textureId,
+      audioTrack,
+    );
+    value = value.copyWith(audioTrack: audioTrack);
   }
 
   @override

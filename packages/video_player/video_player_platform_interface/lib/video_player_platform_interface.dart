@@ -107,9 +107,38 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
   Future<void> setWebOptions(int textureId, VideoPlayerWebOptions options) {
     throw UnimplementedError('setWebOptions() has not been implemented.');
   }
+
+  /// Sets the audio track to be used for the playback.
+  Future<void> setAudioTrack(int textureId, AudioTrack track) {
+    throw UnimplementedError('setAudioTrack() has not been implemented.');
+  }
 }
 
 class _PlaceholderImplementation extends VideoPlayerPlatform {}
+
+/// Informations associated to an audio track
+@immutable
+class AudioTrack {
+  /// Constructs an instance of [AudioTrack].
+  const AudioTrack({
+    required this.id,
+    this.name,
+    String? language,
+  }) : language = language ?? 'und';
+
+  /// An opaque and unique identifier for this specific track.
+  final int id;
+
+  /// The name of this trak, if available.
+  final String? name;
+
+  /// The ISO 639-3 language code for this track.
+  final String language;
+
+  @override
+  String toString() =>
+      '${objectRuntimeType(this, 'AudioTrack')}(id: $id, language: $language, name: $name)';
+}
 
 /// Description of the data source used to create an instance of
 /// the video player.
@@ -218,6 +247,8 @@ class VideoEvent {
     this.rotationCorrection,
     this.buffered,
     this.isPlaying,
+    this.availableAudioTracks,
+    this.currentAudioTrackId,
   });
 
   /// The type of the event.
@@ -248,6 +279,16 @@ class VideoEvent {
   /// Only used if [eventType] is [VideoEventType.isPlayingStateUpdate].
   final bool? isPlaying;
 
+  /// List of all available audio tracks.
+  ///
+  /// Only used if [eventType] is [VideoEventType.initialized].
+  final List<AudioTrack>? availableAudioTracks;
+
+  /// The currently selected audio track id.
+  ///
+  /// Used when [eventType] is [VideoEventType.initialized] of [VideoEventType.isPlayingStateUpdate].
+  final int? currentAudioTrackId;
+
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
@@ -257,6 +298,8 @@ class VideoEvent {
             duration == other.duration &&
             size == other.size &&
             rotationCorrection == other.rotationCorrection &&
+            currentAudioTrackId == other.currentAudioTrackId &&
+            listEquals(availableAudioTracks, other.availableAudioTracks) &&
             listEquals(buffered, other.buffered) &&
             isPlaying == other.isPlaying;
   }
@@ -269,6 +312,8 @@ class VideoEvent {
         rotationCorrection,
         buffered,
         isPlaying,
+        currentAudioTrackId,
+        availableAudioTracks,
       );
 }
 
