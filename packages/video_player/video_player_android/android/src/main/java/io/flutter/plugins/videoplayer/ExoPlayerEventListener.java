@@ -7,12 +7,25 @@ package io.flutter.plugins.videoplayer;
 import android.os.Build;
 import androidx.annotation.NonNull;
 import androidx.annotation.OptIn;
+import androidx.media3.common.C;
 import androidx.media3.common.Format;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
+import androidx.media3.common.TrackGroup;
+import androidx.media3.common.Tracks;
 import androidx.media3.common.VideoSize;
+import androidx.media3.common.util.UnstableApi;
 import androidx.media3.exoplayer.ExoPlayer;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Collection;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 final class ExoPlayerEventListener implements Player.Listener {
   private final ExoPlayer exoPlayer;
@@ -40,10 +53,6 @@ final class ExoPlayerEventListener implements Player.Listener {
       }
       throw new IllegalArgumentException("Invalid rotation degrees specified: " + degrees);
     }
-
-    public int getDegrees() {
-      return this.degrees;
-    }
   }
 
   ExoPlayerEventListener(ExoPlayer exoPlayer, VideoPlayerCallbacks events) {
@@ -68,7 +77,8 @@ final class ExoPlayerEventListener implements Player.Listener {
     }
   }
 
-  @SuppressWarnings("SuspiciousNameCombination")
+    @OptIn(markerClass = UnstableApi.class)
+    @SuppressWarnings("SuspiciousNameCombination")
   private void sendInitialized() {
     if (isInitialized) {
       return;
@@ -81,29 +91,7 @@ final class ExoPlayerEventListener implements Player.Listener {
     if (width != 0 && height != 0) {
       RotationDegrees reportedRotationCorrection = RotationDegrees.ROTATE_0;
 
-      if (Build.VERSION.SDK_INT <= 21) {
-        // On API 21 and below, Exoplayer may not internally handle rotation correction
-        // and reports it through VideoSize.unappliedRotationDegrees. We may apply it to
-        // fix the case of upside-down playback.
-        try {
-          reportedRotationCorrection =
-              RotationDegrees.fromDegrees(videoSize.unappliedRotationDegrees);
-          rotationCorrection =
-              getRotationCorrectionFromUnappliedRotation(reportedRotationCorrection);
-        } catch (IllegalArgumentException e) {
-          // Unapplied rotation other than 0, 90, 180, 270 reported by VideoSize. Because this is unexpected,
-          // we apply no rotation correction.
-          reportedRotationCorrection = RotationDegrees.ROTATE_0;
-          rotationCorrection = 0;
-        }
-      }
-      // TODO(camsim99): Replace this with a call to `handlesCropAndRotation` when it is
-      // available in stable. https://github.com/flutter/flutter/issues/157198
-      else if (Build.VERSION.SDK_INT < 29) {
-        // When the SurfaceTexture backend for Impeller is used, the preview should already
-        // be correctly rotated.
-        rotationCorrection = 0;
-      } else {
+      if (Build.VERSION.SDK_INT >= 29) {
         // The video's Format also provides a rotation correction that may be used to
         // correct the rotation, so we try to use that to correct the video rotation
         // when the ImageReader backend for Impeller is used.
@@ -112,9 +100,6 @@ final class ExoPlayerEventListener implements Player.Listener {
         try {
           reportedRotationCorrection = RotationDegrees.fromDegrees(rotationCorrection);
         } catch (IllegalArgumentException e) {
-          // Rotation correction other than 0, 90, 180, 270 reported by Format. Because this is unexpected,
-          // we apply no rotation correction.
-          reportedRotationCorrection = RotationDegrees.ROTATE_0;
           rotationCorrection = 0;
         }
       }
@@ -127,21 +112,45 @@ final class ExoPlayerEventListener implements Player.Listener {
         height = videoSize.width;
       }
     }
-    events.onInitialized(width, height, exoPlayer.getDuration(), rotationCorrection);
-  }
 
-  private int getRotationCorrectionFromUnappliedRotation(RotationDegrees unappliedRotationDegrees) {
-    int rotationCorrection = 0;
+    AtomicReference<Integer> currentAudiotrackId = new AtomicReference<>();
 
-    // Rotating the video with ExoPlayer does not seem to be possible with a Surface,
-    // so inform the Flutter code that the widget needs to be rotated to prevent
-    // upside-down playback for videos with unappliedRotationDegrees of 180 (other orientations
-    // work correctly without correction).
-    if (unappliedRotationDegrees == RotationDegrees.ROTATE_180) {
-      rotationCorrection = unappliedRotationDegrees.getDegrees();
-    }
+    Tracks info = exoPlayer.getCurrentTracks();
+    List<Map<String, Object>> availableTracks = info.getGroups()
+            .stream()
+            .filter(trackGroupInfo -> trackGroupInfo.getType() == C.TRACK_TYPE_AUDIO)
+            .map((trackGroupInfo) -> {
+              List<HashMap<String, Object>> trackList = new ArrayList<>();
 
-    return rotationCorrection;
+              TrackGroup trackGroup = trackGroupInfo.getMediaTrackGroup();
+
+              for (int i = 0; i < trackGroup.length; i++) {
+                String id = trackGroup.getFormat(i).id;
+                String name = trackGroup.getFormat(i).label;
+                String language = trackGroup.getFormat(i).language;
+
+                if (id != null && language != null) {
+                  if (trackGroupInfo.isTrackSelected(i)) {
+                    currentAudiotrackId.set(id.hashCode());
+                  }
+                  Locale languageLocale = new Locale(language);
+                  HashMap<String, Object> track = new HashMap<>();
+                  track.put("id", id.hashCode());
+                  track.put("language", languageLocale.getISO3Language());
+
+                  if (name != null) {
+                    track.put("name", name);
+                  }
+                  trackList.add(track);
+                }
+              }
+
+              return trackList;
+            })
+            .flatMap(Collection::stream)
+            .collect(Collectors.toCollection(ArrayList::new));
+
+    events.onInitialized(width, height, exoPlayer.getDuration(), rotationCorrection, currentAudiotrackId.get(), availableTracks);
   }
 
   @OptIn(markerClass = androidx.media3.common.util.UnstableApi.class)

@@ -191,6 +191,12 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
     options.mixWithOthers = mixWithOthers;
   }
 
+  @Override
+  public void setAudioTrack(@NonNull Long textureId, @NonNull Long trackId) {
+    VideoPlayer player = videoPlayers.get(textureId);
+    player.setAudioTrack(trackId);
+  }
+
   private interface KeyForAssetFn {
     String get(String asset);
   }
