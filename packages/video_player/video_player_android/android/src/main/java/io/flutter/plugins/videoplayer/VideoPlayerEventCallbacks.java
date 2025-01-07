@@ -60,7 +60,7 @@ final class VideoPlayerEventCallbacks implements VideoPlayerCallbacks {
       event.put("rotationCorrection", rotationCorrectionInDegrees);
     }
     if (currentAudiotrackId != null) {
-      event.put("currentAudiotrackId", currentAudiotrackId);
+      event.put("currentAudioTrackId", currentAudiotrackId);
     }
     event.put("audioTracks", availableTracks);
     eventSink.success(event);
