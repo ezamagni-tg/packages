@@ -20,16 +20,16 @@ flutter:
 dependencies:
   flutter:
     sdk: flutter
-  video_player_platform_interface: ">=6.1.0 <7.0.0"
+  video_player_platform_interface:
+    git:
+      url: git@github.com:ezamagni-tg/packages.git
+      ref: video_player_audiotrack
+      path: packages/video_player/video_player_platform_interface
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   pigeon: ^22.4.2
-
-dependency_overrides:
-  video_player_platform_interface:
-    path: ../video_player_platform_interface
 
 topics:
   - video
